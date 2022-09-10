@@ -17,7 +17,7 @@ npm install
 
 Then run:
 ```bash
-npm src/index.js
+node src/index.js
 ```
 
 ## See in live action
