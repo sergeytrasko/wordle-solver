@@ -1,4 +1,6 @@
 import puppeteer from 'puppeteer'
+import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder'
+import moment from 'moment'
 
 import { readWords } from './words.js'
 import { Session } from './session.js'
@@ -6,9 +8,12 @@ import { feedback } from './feedback.js'
 
 (async () => {
     const browser = await puppeteer.launch({
-        headless: false
+        headless: false,
+        defaultViewport: null,
+        args:['--disable-infobars', '--start-maximized', '--window-size=1366,768', '--kiosk' ]
     })
     const page = await browser.newPage()
+    const recorder = new PuppeteerScreenRecorder(page)
     await page.setDefaultNavigationTimeout(0)
     await page.goto('https://www.nytimes.com/games/wordle/index.html')
 
@@ -20,13 +25,15 @@ import { feedback } from './feedback.js'
     await page.waitForSelector('[class^="Modal-module_closeIcon"]')
     const closeIcon = await page.$('[class^="Modal-module_closeIcon"]')
     await closeIcon.click()
+    await page.waitForTimeout(1000)        
 
+    await recorder.start(`recordings/${moment(new Date()).format('YYYY-MM-DD')}.mp4`)
     const words = await readWords()
     const session = new Session(words)
     for (let attempt = 1; ; attempt++) {
         let word = session.getWord()
         console.log(`Attempt ${attempt}: trying word ${word}`)
-        await page.keyboard.type(word + '\n')
+        await page.keyboard.type(word + '\n', {delay: 100})
         await page.waitForTimeout(3 * 1000)        
         const rows = Array.from(await page.$$('[class^="Row-module_row"]'))
         const row = rows[attempt-1]
@@ -45,6 +52,7 @@ import { feedback } from './feedback.js'
             break
         }
     }
-    await page.waitForTimeout(5 * 1000)
+    await page.waitForTimeout(3 * 1000)
+    await recorder.stop()
     await browser.close()
 })()
